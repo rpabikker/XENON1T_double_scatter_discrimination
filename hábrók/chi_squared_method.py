@@ -184,8 +184,6 @@ def plot_roc_curve(chi2_single, chi2_double):
     plt.grid()
     plt.show()
 
-plot_roc_curve(*calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=10, ratio=0.5))
-
     
 
 
@@ -201,32 +199,18 @@ def AUC(chi2_single, chi2_double):
     fprs, tprs, thresholds = roc_curve(chi2_single, chi2_double)
     return auc(fprs, tprs)
 
-def AUC_heatmap(distances, ratios, num_iterations=1000, photons=10_000):
-    """Calculate AUC for a range of distances and ratios, and plot as heatmap"""
-    auc_values = np.zeros((len(distances), len(ratios)))
-    for i, distance in enumerate(distances):
-        for j, ratio in enumerate(ratios):
-            chi2_single, chi2_double = calculate_chi2_statistics(num_iterations, photons, distance, ratio)
-            auc_values[i, j] = AUC(chi2_single, chi2_double)
-    
-    plt.figure(figsize=(10, 6))
-    plt.pcolormesh(auc_values, cmap='viridis', vmin=0.5, vmax=1.0)
-    plt.colorbar(label='AUC')
-    for i in range(len(distances)):
-        for j in range(len(ratios)):
-            plt.text(j + 0.5, i + 0.5, f'{auc_values[i, j]:.2f}',
-                ha='center', va='center',
-                color='white' if auc_values[i, j] < 0.75 else 'black',
-                fontsize=8)
-    plt.xticks(np.arange(len(ratios)) + 0.5, [f'{r:.2f}' for r in ratios])
-    plt.yticks(np.arange(len(distances)) + 0.5, [f'{d:.0f}' for d in distances])
-    plt.xlabel('Signal Ratio (ratio)')
-    plt.ylabel('Distance between scatters (cm)')
-    plt.title('AUC Heatmap for Double Scatter Discrimination')
-    plt.show()
+distances = np.linspace(0, 30, 150)  # Example distances from 0 to 30 cm
+ratios = np.linspace(0.01, 0.5, 100)  # Example ratios from 0.1 to 0.9
 
-distances = np.linspace(0, 20, 5)  # Example distances from 0 to 20 cm
-ratios = np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.5])  # Example ratios from 0.1 to 0.9
-AUC_heatmap(distances, ratios, num_iterations=500, photons=10_000)
+auc_values = np.zeros((len(distances), len(ratios)))
+for i, distance in enumerate(distances):
+    for j, ratio in enumerate(ratios):
+        chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
+        auc_values[i, j] = AUC(chi2_single, chi2_double)
+
+#save auc values to csv file to save after running on cluster.
+import pandas as pd
+df = pd.DataFrame(auc_values, index=distances, columns=ratios)
+df.to_csv('auc_values.csv')
 
 
