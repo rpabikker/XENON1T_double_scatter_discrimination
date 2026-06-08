@@ -4,10 +4,14 @@ import numpy as np
 import configparser
 from scipy import stats
 from sklearn.metrics import roc_curve, auc
+import urllib.request
 
 # %%
 #pmt details
-!curl -O https://raw.githubusercontent.com/XENON1T/pax/refs/heads/master/pax/config/XENON1T.ini
+urllib.request.urlretrieve(
+    "https://raw.githubusercontent.com/XENON1T/pax/refs/heads/master/pax/config/XENON1T.ini",
+    "XENON1T.ini"
+)
 config = configparser.ConfigParser()
 config.read('XENON1T.ini')
 pmt_config = eval(config['DEFAULT']['pmts'])
