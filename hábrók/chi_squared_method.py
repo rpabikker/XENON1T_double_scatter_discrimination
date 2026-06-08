@@ -211,6 +211,5 @@ for i, distance in enumerate(distances):
 #save auc values to csv file to save after running on cluster.
 import pandas as pd
 df = pd.DataFrame(auc_values, index=distances, columns=ratios)
-df.to_csv('auc_values.csv')
-
+df.to_csv("/scratch/s5742463/auc_results.csv", index=False)
 
