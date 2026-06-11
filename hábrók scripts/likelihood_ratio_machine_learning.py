@@ -374,5 +374,5 @@ for i, distance in enumerate(tqdm(distances, desc="Distances")):
 #save auc values to csv file to save after running on cluster.
 import pandas as pd
 df = pd.DataFrame(auc_values, index=distances, columns=ratios)
-df.to_csv("/scratch/s5742463/auc_results_machine_learning.csv", index=False)
+df.to_csv("/scratch/s5742463/auc_results_machine_learning_50_50.csv", index=False)
 print("Finished script succesfully")
