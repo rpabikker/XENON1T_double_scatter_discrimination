@@ -212,8 +212,8 @@ def AUC(chi2_single, chi2_double):
 
 print("Starting process")
 
-distances = np.linspace(0, 30, 3)  # Example distances from 0 to 30 cm
-ratios = np.linspace(0.01, 0.5, 2)  # Example ratios from 0.1 to 0.9
+distances = np.linspace(0, 30, 150)  # Example distances from 0 to 30 cm
+ratios = np.linspace(0.01, 0.5, 100)  # Example ratios from 0.1 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
 for i, distance in enumerate(tqdm(distances, desc="Distances")):
