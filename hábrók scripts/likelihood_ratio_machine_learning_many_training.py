@@ -24,6 +24,7 @@ import numpy as np
 import configparser
 from scipy import stats
 import urllib.request
+from tqdm import tqdm
 
 urllib.request.urlretrieve(
     "https://raw.githubusercontent.com/XENON1T/pax/refs/heads/master/pax/config/XENON1T.ini",
@@ -355,8 +356,8 @@ def AUC(chi2_single, chi2_double):
     return auc(fprs, tprs)
 
 
-distances = np.linspace(0, 30, 2)  # Example distances from 0 to 30 cm
-ratios = np.linspace(0.01, 0.5, 2)  # Example ratios from 0.1 to 0.9
+distances = np.linspace(0, 20, 5)  # Example distances from 0 to 20 cm
+ratios = np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.5])  # Example ratios from 0.01 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
 for i, distance in enumerate(tqdm(distances, desc="Distances")):

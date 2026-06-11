@@ -24,6 +24,7 @@ import numpy as np
 import configparser
 from scipy import stats
 import urllib.request
+from tqdm import tqdm
 
 urllib.request.urlretrieve(
     "https://raw.githubusercontent.com/XENON1T/pax/refs/heads/master/pax/config/XENON1T.ini",
