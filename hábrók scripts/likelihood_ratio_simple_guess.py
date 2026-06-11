@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import configparser
 from scipy import stats
+import pandas as pd
 from sklearn.metrics import roc_curve, auc
-import urllib.request
+from tqdm import tqdm
 
 # %%
 #pmt details
@@ -63,7 +64,7 @@ def simulate_uniform_double_signals(num_signals=1000, photons=10_000):
     xy2 = np.column_stack((radius2 * np.cos(angle2), radius2 * np.sin(angle2)))
     signal1 = simulate_signal(xy1, photons)
     signal2 = simulate_signal(xy2, photons)
-    return signal1, signal2
+    return signal1 + signal2
 
 def simulate_double_signal_constrained_parameters(num_signals=1000, photons=10_000, distance=10, ratio=0.5):
     """Simulate a double scatter signal with a fixed distance and a fixed signal ratio between the signals"""
@@ -81,6 +82,9 @@ def simulate_double_signal_constrained_parameters(num_signals=1000, photons=10_0
             signal1.append(simulate_signal(xy1, ratio * photons).squeeze())      # (127,)
             signal2.append(simulate_signal(xy2, (1-ratio) * photons).squeeze())
     return np.array(signal1) + np.array(signal2)
+
+# %% [markdown]
+# Single scatter hypothesis model and optimization
 
 # %%
 # Define loss function for single scatter hypothesis
@@ -104,49 +108,103 @@ def single_scatter_optimizer(signal):
     result = minimize(lambda xy: loss_function(xy, signal), initial_guess, bounds=[(-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius)])
     return result.x
 
-# Calculate chi squared statistic
-def chi2(observed, expected):
-    """Calculate the chi-squared statistic for observed vs expected signals"""
-    # Avoid division by zero by using np.where, which replaces any zeroes with a small number
-    expected = np.where(expected == 0, 1e-6, expected) 
-    return np.sum((observed - expected) ** 2 / expected)
+# %% [markdown]
+# Double scatter hypothesis model and optimization
 
-# Calculate chi squared statistic for many iterations of single and double scatters
-def calculate_chi2_statistics_2(num_iterations=1000, photons=10_000, distance=10, ratio=0.5):
-    """Calculate chi-squared statistics for many iterations of single and double scatters"""
-    chi2_single = []
-    chi2_double = []
-    for _ in range(num_iterations):
-        # Simulate single scatter
-        signal_single = simulate_uniform_signals(1, photons).squeeze()
-        # Optimize single scatter hypothesis
-        xy_single = single_scatter_optimizer(signal_single)
-        expected_single = 10_000 * mean_response(xy_single.reshape(1, 2)).squeeze()
-        chi2_single.append(chi2(signal_single, expected_single))
-        
-        # Simulate double scatter
-        signal_double = simulate_double_signal_constrained_parameters(1, photons, distance, ratio).squeeze()
-        # Optimize single scatter hypothesis for double scatter signal
-        xy_double = single_scatter_optimizer(signal_double)
-        expected_double = 10_000 * mean_response(xy_double.reshape(1, 2)).squeeze()
-        chi2_double.append(chi2(signal_double, expected_double))
+# %%
+#double scatter optimizer
+def double_scatter_initial_guess(signal):
+    """Simple initial guess for double scatter hypothesis, takes 2 highest valued PMTs
+    and uses their positiosn as initial guess for two scatters.
+    Signal ratio is estimated from signal ratio of 2 strongest PMTs."""
+    # Find the indices of the two highest valued PMTs
+    top_indices = np.argsort(signal)[-2:]
+    # Estimate signal ratio from the two strongest PMTs
+    split_ratio = signal[top_indices[0]] / (signal[top_indices[0]] + signal[top_indices[1]])
+    # Use their positions as initial guess for the two scatters
+    initial_guess = [pmt_positions[top_indices[0], 0], pmt_positions[top_indices[0], 1],
+                     pmt_positions[top_indices[1], 0], pmt_positions[top_indices[1], 1], split_ratio]  # x1, y1, x2, y2, split ratio
+    return initial_guess
 
-    return np.array(chi2_single), np.array(chi2_double)
+def double_scatter_loss(params, signal):
+    """Loss function for double scatter hypothesis, given parameters and observed signal. The parameters are x1, y1, x2, y2, and split ratio of the signal between the two scatters."""
+    x1, y1, x2, y2, split_ratio = params
+    xy1 = np.array([[x1, y1]])
+    xy2 = np.array([[x2, y2]])
+    expected_signal1 = 10_000 * mean_response(xy1).squeeze() * split_ratio
+    expected_signal2 = 10_000 * mean_response(xy2).squeeze() * (1 - split_ratio)
+    expected_signal = expected_signal1 + expected_signal2
+    return -np.sum(signal * np.log(expected_signal + 1e-6) - expected_signal)
 
+def double_scatter_optimizer(signal):
+    """Optimizes parameters for double scatter hypothesis, using the initial guess from the ellipse method."""
+    initial_guess = double_scatter_initial_guess(signal)
+    bounds = [(-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (0.01, 0.99)]
+    result = minimize(lambda params: double_scatter_loss(params, signal), initial_guess, bounds=bounds)
+    return result
+
+def double_scatter_optimizer_with_plotting(signal):
+    """Optimizes parameters for double scatter hypothesis, using the initial guess from the ellipse method."""
+    initial_guess = double_scatter_initial_guess(signal)
+    bounds = [(-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (0.01, 0.99)]
+    result = minimize(lambda params: double_scatter_loss(params, signal), initial_guess, bounds=bounds)
+    plt.scatter(*pmt_positions.T, c=signal, cmap='jet', s=250, vmin=0)
+    plt.colorbar(label='Detected signal [PE]')
+    plt.scatter([initial_guess[0], initial_guess[2]], [initial_guess[1], initial_guess[3]], c='cyan', marker='x', s=200, label='Initial Guess (Ellipse Foci)')
+    plt.scatter([result.x[0], result.x[2]], [result.x[1], result.x[3]], c='magenta', marker='x', s=200, label='Optimized Positions')
+    plt.legend()
+    plt.gca().set_aspect('equal')
+    plt.xlabel('x [cm]')
+    plt.ylabel('y [cm]')
+
+    plt.title('Double Scatter optimization with Initial Guess from Ellipse Method')
+    plt.show()
+    
+    return result
+# %% [markdown]
+# Calculating statistics and performing selection
+
+# %%
+#Profile likelihood ratio test statistic
+def profile_likelihood_ratio(signal):
+    """Calculate the profile likelihood ratio test statistic for a given signal."""
+    # Optimize under single scatter hypothesis
+    single_params = single_scatter_optimizer(signal)
+    single_loss = loss_function(single_params, signal)
+
+    # Optimize under double scatter hypothesis
+    double_params = double_scatter_optimizer(signal)
+    double_loss = double_scatter_loss(double_params.x, signal)
+
+    # Test statistic is 2*(single_loss - double_loss)
+    test_statistic = 2 * (single_loss - double_loss)
+    return test_statistic
+
+#
+#Is this actually chi squared?
+#This has to do with Wilk's theorem
+#
 def calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=10, ratio=0.5):
-    # Single scatter — fully vectorized
-    signals_single = simulate_uniform_signals(num_iterations, photons)  # (N, pmts)
-    xy_single = np.array([single_scatter_optimizer(s) for s in signals_single])
-    expected_single = photons * mean_response(xy_single)  # (N, pmts) — one batch call
-    chi2_single = np.sum((signals_single - expected_single)**2 / np.where(expected_single == 0, 1e-6, expected_single), axis=1)
+    """Calculate chi2 statistics for single and double scatter signals, using the profile likelihood ratio test statistic."""
+    single_stats = []
+    double_stats = []
+    for _ in range(num_iterations):
+        single_signal = simulate_uniform_signals(1, photons).squeeze()
+        double_signal = simulate_double_signal_constrained_parameters(1, photons, distance, ratio).squeeze()
+        single_stats.append(profile_likelihood_ratio(single_signal))
+        double_stats.append(profile_likelihood_ratio(double_signal))
 
-    # Double scatter — vectorized after simulation
-    signals_double = simulate_double_signal_constrained_parameters(num_iterations, photons, distance, ratio)
-    xy_double = np.array([single_scatter_optimizer(s) for s in signals_double])
-    expected_double = photons * mean_response(xy_double)
-    chi2_double = np.sum((signals_double - expected_double)**2 / np.where(expected_double == 0, 1e-6, expected_double), axis=1)
+    #make histogram of the statistics
+    plt.hist(single_stats, bins=50, alpha=0.5, label='Single Scatter', density=True)
+    plt.hist(double_stats, bins=50, alpha=0.5, label='Double Scatter', density=True)
+    plt.xlabel('Profile Likelihood Ratio Test Statistic')
+    plt.ylabel('Density')
+    plt.title('Distribution of Test Statistic for Single and Double Scatters')
+    plt.legend()
+    plt.grid()
+    plt.show()
+    return np.array(single_stats), np.array(double_stats)
 
-    return chi2_single, chi2_double
 
 def selection_operation(chi2_single, chi2_double, threshold):
     """Run selection on both arrays based on chi2 value, accepting values below the threshold
@@ -159,7 +217,7 @@ def selection_operation(chi2_single, chi2_double, threshold):
     return true_positive, false_positive
 
 def roc_curve(chi2_single, chi2_double):
-    """Determine ROC curve, using as thresholds all unique chi2 values from both arrays..
+    """Determine ROC curve, using as thresholds all unique statistic values from both arrays..
     Returns false positive rates, true positive rates, and thresholds."""
 
     thresholds = np.sort(np.unique(np.concatenate((chi2_single, chi2_double))))
@@ -188,16 +246,8 @@ def plot_roc_curve(chi2_single, chi2_double):
     plt.grid()
     plt.show()
 
-    
-
-
-
-
-
 
 # %%
-#AUC calculation and heatmap plotting for a range of distances and ratios
-
 def AUC(chi2_single, chi2_double):
     """Calculate the area under the ROC curve for given chi2 values"""
     fprs, tprs, thresholds = roc_curve(chi2_single, chi2_double)
@@ -207,7 +257,7 @@ distances = np.linspace(0, 30, 150)  # Example distances from 0 to 30 cm
 ratios = np.linspace(0.01, 0.5, 100)  # Example ratios from 0.1 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
-for i, distance in enumerate(distances):
+for i, distance in enumerate(tqdm(distances, desc="Distances")):
     for j, ratio in enumerate(ratios):
         chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
         auc_values[i, j] = AUC(chi2_single, chi2_double)
@@ -216,4 +266,7 @@ for i, distance in enumerate(distances):
 import pandas as pd
 df = pd.DataFrame(auc_values, index=distances, columns=ratios)
 df.to_csv("/scratch/s5742463/auc_results.csv", index=False)
+print("Finished script succesfully")
+
+
 
