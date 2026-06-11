@@ -71,8 +71,6 @@ def plot_signal(signal):
     plt.ylabel('y [cm]')
 
 
-plot_signal(simulate_signal(np.array([[0, 0]]), photons=30)[0])
-
 """Note from Jelle: not sure this idea of a permutation invariant loss will work. Maybe instead have a fifth output containing the ratio of secondary top primary scatter, and train on hitpatterns where the ratio is clearly less than 0.5 so swapping the first and second seems unlikely."""
 
 def permutation_invariant_loss(y_true, y_pred):
@@ -355,9 +353,6 @@ def plot_roc_curve(chi2_single, chi2_double):
     plt.grid()
     plt.show()
 
-
-calculate_chi2_statistics(num_iterations=100, photons=10_000, distance=10, ratio=0.5)
-plot_roc_curve(*calculate_chi2_statistics(num_iterations=100, photons=10_000, distance=10, ratio=0.5))
 
 def AUC(chi2_single, chi2_double):
     """Calculate the area under the ROC curve for given chi2 values"""

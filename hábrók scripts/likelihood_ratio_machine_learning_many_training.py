@@ -70,9 +70,6 @@ def plot_signal(signal):
     plt.xlabel('x [cm]')
     plt.ylabel('y [cm]')
 
-
-plot_signal(simulate_signal(np.array([[0, 0]]), photons=30)[0])
-
 """Note from Jelle: not sure this idea of a permutation invariant loss will work. Maybe instead have a fifth output containing the ratio of secondary top primary scatter, and train on hitpatterns where the ratio is clearly less than 0.5 so swapping the first and second seems unlikely."""
 
 def permutation_invariant_loss(y_true, y_pred):
@@ -352,22 +349,19 @@ def plot_roc_curve(chi2_single, chi2_double):
     plt.show()
 
 
-calculate_chi2_statistics(num_iterations=100, photons=10_000, distance=10, ratio=0.5)
-plot_roc_curve(*calculate_chi2_statistics(num_iterations=100, photons=10_000, distance=10, ratio=0.5))
-
 def AUC(chi2_single, chi2_double):
     """Calculate the area under the ROC curve for given chi2 values"""
     fprs, tprs, thresholds = roc_curve(chi2_single, chi2_double)
     return auc(fprs, tprs)
 
 
-distances = np.linspace(0, 30, 50)  # Example distances from 0 to 30 cm
-ratios = np.linspace(0.01, 0.5, 50)  # Example ratios from 0.1 to 0.9
+distances = np.linspace(0, 30, 2)  # Example distances from 0 to 30 cm
+ratios = np.linspace(0.01, 0.5, 2)  # Example ratios from 0.1 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
 for i, distance in enumerate(tqdm(distances, desc="Distances")):
     for j, ratio in enumerate(ratios):
-        X_train, y_train = generate_constrained_training_data(n_samples=10_000, distance, ratio)
+        X_train, y_train = generate_constrained_training_data(10_000, distance, ratio)
         model = build_double_scatter_model(input_dim=127)
         model.fit(X_train, y_train, epochs=30, batch_size=64, validation_split=0.1)
         chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
