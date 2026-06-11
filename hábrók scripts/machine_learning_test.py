@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import configparser
 from scipy import stats
-import urrlib.request
+import urllib.request
 
 urllib.request.urlretrieve(
     "https://raw.githubusercontent.com/XENON1T/pax/refs/heads/master/pax/config/XENON1T.ini",

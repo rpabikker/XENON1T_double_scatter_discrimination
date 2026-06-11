@@ -150,10 +150,6 @@ def generate_random_training_data(n_samples=10_000, **sim_kwargs):
 
     return np.array(X), np.array(y)
 
-X_train, y_train = generate_random_training_data(n_samples=10_000)
-model = build_double_scatter_model(input_dim=127)
-model.fit(X_train, y_train, epochs=30, batch_size=64, validation_split=0.1)
-
 def generate_constrained_training_data(n_samples=10_000, distance=10, ratio=0.5, **sim_kwargs):
     """Generate matched (signal, true_positions) pairs for NN training."""
     X, y = [], []
@@ -371,6 +367,9 @@ ratios = np.linspace(0.01, 0.5, 50)  # Example ratios from 0.1 to 0.9
 auc_values = np.zeros((len(distances), len(ratios)))
 for i, distance in enumerate(tqdm(distances, desc="Distances")):
     for j, ratio in enumerate(ratios):
+        X_train, y_train = generate_constrained_training_data(n_samples=10_000, distance, ratio)
+        model = build_double_scatter_model(input_dim=127)
+        model.fit(X_train, y_train, epochs=30, batch_size=64, validation_split=0.1)
         chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
         auc_values[i, j] = AUC(chi2_single, chi2_double)
 
