@@ -216,10 +216,10 @@ distances = np.linspace(0, 30, 3)  # Example distances from 0 to 30 cm
 ratios = np.linspace(0.01, 0.5, 2)  # Example ratios from 0.1 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
-for i, j in tqdm(list(product(range(len(distances)), range(len(ratios)))), desc="Parameter space exploration"):
-    distance, ratio = distances[i], ratios[j]
-    chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
-    auc_values[i, j] = AUC(chi2_single, chi2_double)
+for i, distance in enumerate(tqdm(distances, desc="Distances")):
+    for j, ratio in enumerate(ratios):
+        chi2_single, chi2_double = calculate_chi2_statistics(num_iterations=1000, photons=10_000, distance=distance, ratio=ratio)
+        auc_values[i, j] = AUC(chi2_single, chi2_double)
 
 #save auc values to csv file to save after running on cluster.
 import pandas as pd
