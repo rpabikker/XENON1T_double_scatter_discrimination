@@ -279,8 +279,8 @@ def AUC(chi2_single, chi2_double):
     fprs, tprs, thresholds = roc_curve(chi2_single, chi2_double)
     return auc(fprs, tprs)
 
-distances = np.linspace(0, 30, 150)  # Example distances from 0 to 30 cm
-ratios = np.linspace(0.01, 0.5, 100)  # Example ratios from 0.1 to 0.9
+distances = np.linspace(0, 30, 50)  # Example distances from 0 to 30 cm
+ratios = np.linspace(0.01, 0.5, 50)  # Example ratios from 0.1 to 0.9
 
 auc_values = np.zeros((len(distances), len(ratios)))
 for i, distance in enumerate(tqdm(distances, desc="Distances")):
@@ -291,7 +291,7 @@ for i, distance in enumerate(tqdm(distances, desc="Distances")):
 #save auc values to csv file to save after running on cluster.
 import pandas as pd
 df = pd.DataFrame(auc_values, index=distances, columns=ratios)
-df.to_csv("/scratch/s5742463/auc_results.csv", index=False)
+df.to_csv("/scratch/s5742463/auc_results_ellipse_guess.csv", index=False)
 print("Finished script succesfully")
 
 
