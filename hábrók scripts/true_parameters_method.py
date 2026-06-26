@@ -6,7 +6,7 @@ from scipy import stats
 import pandas as pd
 from sklearn.metrics import roc_curve, auc
 from tqdm import tqdm
-import urrlib.request
+import urllib.request
 
 # %%
 #pmt details
