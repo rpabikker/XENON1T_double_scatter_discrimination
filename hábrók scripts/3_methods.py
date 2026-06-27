@@ -293,29 +293,6 @@ def double_scatter_optimizer(signal):
     
     return best_result
 
-double_scatter_optimizer(simulate_uniform_double_signals(num_signals=1)[0])
-
-def double_scatter_optimizer_with_plotting(signal):
-    """Optimizes parameters for double scatter hypothesis, using the initial guess from the ellipse method."""
-    initial_guess = double_scatter_initial_guess(signal)
-    bounds = [(-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (0.01, 0.99)]
-    result = minimize(lambda params: double_scatter_loss(params, signal), initial_guess, bounds=bounds)
-    plt.scatter(*pmt_positions.T, c=signal, cmap='jet', s=250, vmin=0)
-    plt.colorbar(label='Detected signal [PE]')
-    plt.scatter([initial_guess[0], initial_guess[2]], [initial_guess[1], initial_guess[3]], c='cyan', marker='x', s=200, label='Initial Guess (Ellipse Foci)')
-    plt.scatter([result.x[0], result.x[2]], [result.x[1], result.x[3]], c='magenta', marker='x', s=200, label='Optimized Positions')
-    plt.legend()
-    plt.gca().set_aspect('equal')
-    plt.xlabel('x [cm]')
-    plt.ylabel('y [cm]')
-
-    plt.title('Double Scatter optimization with Initial Guess from Ellipse Method')
-    plt.show()
-    
-    return result
-#double_scatter_optimizer_with_plotting(simulate_uniform_double_signals(num_signals=1)[0])
-double_scatter_optimizer_with_plotting(*simulate_double_signal_constrained_parameters(num_signals=1, distance=5, ratio=0.3))
-
 # %% [markdown]
 # Calculating statistics and performing selection
 
