@@ -286,7 +286,6 @@ def double_scatter_optimizer(signal):
     initial_guesses = [simple_guess(signal), ellipse_guess(signal)[0], nn_initial_guess(signal, model)]
     best_result = None
     bounds = [(-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (-tpc_radius, tpc_radius), (0.01, 0.99)]
-    result = minimize(lambda params: double_scatter_loss(params, signal), initial_guess, bounds=bounds)
     for ig in initial_guesses:
         result = minimize(lambda params: double_scatter_loss(params, signal), ig, bounds=bounds)
         if best_result is None or result.fun < best_result.fun:
